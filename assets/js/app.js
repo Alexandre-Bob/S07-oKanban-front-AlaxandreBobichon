@@ -141,6 +141,22 @@ const app = {
     app.cardModalElement.querySelector('input[name="listId"]').value = id;
   },
 
+  // Recuperer les listes via API 
+  getListsFromAPI: async () => {
+    const reponse = await fetch('http://localhost:3000/lists', {
+      method: 'GET',
+      
+    });
+    const data = await reponse.json();
+    app.makeListInDOM(data[0].name);
+    
+    
+  },
+
+};
+
+const bas_url = {
+
 };
 
 
