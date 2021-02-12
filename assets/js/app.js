@@ -105,14 +105,16 @@ const app = {
   },
 
   // on prévoit ici un deuxième paramètre représentant l'id de la liste dans laquelle on veut la carte
-  makeCardInDOM: function(cardName, parentId,) {
+  makeCardInDOM: function(cardName, parentId, idCard, color) {
     // création de la card dans le dom sur le meme principe que la liste
     const template = document.querySelector('#cardTemplate');
     const clone = template.content.cloneNode(true);
     clone.querySelector('.card-name').textContent = cardName;
-    clone.querySelector('.box').setAttribute('data-card-id', '?');
+    clone.querySelector('.box').setAttribute('data-card-id', idCard );
+    // on donne la couleur a la card
+    clone.querySelector(`div[data-card-id="${idCard}"]`).style.backgroundColor= color;
     // on insère la card au bon endroit dans la liste, on utilise ici un selecteur d'attribut
-    document.querySelector(`div[data-list-id="${parentId}"] .panel-block`).appendChild(clone);
+     document.querySelector(`div[data-list-id="${parentId}"] .panel-block`).appendChild(clone);
   },
 
   hideModals: function() {
@@ -161,8 +163,9 @@ const app = {
       //console.log(data.lists[key].cards[0]);
       
       for (const index in data.lists[key].cards){
-        console.log(data.lists[key].cards[index].title);
-        app.makeCardInDOM(data.lists[key].cards[index].title, data.lists[key].cards[index].list_id)
+        //console.log(data.lists[key].cards[index].title);
+       //console.log(data.lists[key].cards[index].color);
+        app.makeCardInDOM(data.lists[key].cards[index].title, data.lists[key].cards[index].list_id, data.lists[key].cards[index].id, data.lists[key].cards[index].color)
       }
       
     }
@@ -170,7 +173,7 @@ const app = {
     
   },
 
-  getCardsFromAPI: async () => {}
+  
 
 };
 
