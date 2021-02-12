@@ -16,6 +16,9 @@
 
 // on objet qui contient des fonctions
 const app = {
+
+  base_url: "http://localhost:3000/",
+
   // fonction d'initialisation, lancée au chargement de la page
   init: function () {
     // je mémorise des élements pour plus tard
@@ -25,6 +28,7 @@ const app = {
     app.cardFormElement = document.querySelector('#addCardForm');
     app.cardModalElement = document.querySelector('#addCardModal');
     app.addListenerToActions();
+    app.getListsFromAPI()
   },
 
   addListenerToActions: function() { 
@@ -81,7 +85,7 @@ const app = {
     app.hideModals();
   },
 
-  makeListInDOM: function(listName) {
+  makeListInDOM: function(listName, id) {
     // je cible mon template
     const template = document.querySelector('#listTemplate');
     // je clone son contenu
@@ -91,7 +95,7 @@ const app = {
     const title = clone.querySelector('h2');
     title.textContent = listName;
     const panel = clone.querySelector('.panel');
-    panel.setAttribute('data-list-id', 'X');
+    panel.setAttribute('data-list-id', id);
     // /!\ on écoute le click sur le + de la nouvelle liste aussi !
     clone.querySelector('.panel-heading a').addEventListener('click', app.showAddCardModal);
     // trouver le parent column du bouton
@@ -101,7 +105,7 @@ const app = {
   },
 
   // on prévoit ici un deuxième paramètre représentant l'id de la liste dans laquelle on veut la carte
-  makeCardInDOM: function(cardName, parentId) {
+  makeCardInDOM: function(cardName, parentId,) {
     // création de la card dans le dom sur le meme principe que la liste
     const template = document.querySelector('#cardTemplate');
     const clone = template.content.cloneNode(true);
@@ -143,21 +147,34 @@ const app = {
 
   // Recuperer les listes via API 
   getListsFromAPI: async () => {
-    const reponse = await fetch('http://localhost:3000/lists', {
+    const reponse = await fetch( app.base_url + 'lists', {
       method: 'GET',
       
     });
     const data = await reponse.json();
-    app.makeListInDOM(data[0].name);
+    
+    //console.log(data.lists[0].name);
+    //je boucle pour récuperer toutes les list et toutes leurs id
+    for(const key in data.lists){
+      app.makeListInDOM(data.lists[key].name, data.lists[key].id, );
+      //console.log(data.lists[key].cards, data.lists[key].id);
+      //console.log(data.lists[key].cards[0]);
+      
+      for (const index in data.lists[key].cards){
+        console.log(data.lists[key].cards[index].title);
+        app.makeCardInDOM(data.lists[key].cards[index].title, data.lists[key].cards[index].list_id)
+      }
+      
+    }
     
     
   },
 
-};
-
-const bas_url = {
+  getCardsFromAPI: async () => {}
 
 };
+
+
 
 
 // on accroche un écouteur d'évènement sur le document : quand le chargement est terminé, on lance app.init
