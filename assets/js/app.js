@@ -16,6 +16,10 @@
 
 // on objet qui contient des fonctions
 const app = {
+
+  // base_url: 'http://localhost:3000',
+  base_url: 'http://localhost:3000',
+
   // fonction d'initialisation, lancée au chargement de la page
   init: function () {
     // je mémorise des élements pour plus tard
@@ -25,6 +29,36 @@ const app = {
     app.cardFormElement = document.querySelector('#addCardForm');
     app.cardModalElement = document.querySelector('#addCardModal');
     app.addListenerToActions();
+    // j'execute ma tache asynchrone pour récupérer et générer les listes
+    app.getListsFromAPI();
+  },
+
+  // on fait une fonction asynchrone car on ne veut pas mettre en pause le script, il continue son execution
+  getListsFromAPI: async function() {
+    try {
+      // on attend la réponse de l'api
+      const response = await fetch(`${app.base_url }/lists`);
+      // on attend l'analyse du corps de la réponse en json
+      const body = await response.json();
+      // si tout va bien
+      if (response.status === 200) {
+        // on dit quoi faire des données récupérées, ici pour chaque liste on génère une liste dans le DOM, on a tranposé une donnée brut vers une interface facilement compréhensible par mon utilisateur
+        // code RED : on récupère un tableau
+        // for (list of body) {
+        // code BLUE : on récupère un objet contenant un tableau
+        for (list of body.lists) {
+          app.makeListInDOM(list.name, list.id);
+        }
+      }
+      // si l'api nous répond mais que la réponse est une erreur (par exemple si on obtient code 40X)
+      else {
+        throw new Error(body);
+      }
+    } catch(error) {
+      alert('Erreur lors de la récupération des listes');
+      console.error(error);
+    }
+
   },
 
   addListenerToActions: function() { 
@@ -43,30 +77,50 @@ const app = {
     // réagir à la soumission
     app.listFormElement.addEventListener('submit', app.handleAddListForm);
 
-    // on cible les + pour l'ajout de cartes
-    const cardButtonElements = document.querySelectorAll('.panel-heading a');
-    cardButtonElements.forEach((button) => {
-      button.addEventListener('click', app.showAddCardModal);
-    });
-
     // soumission du formulaire des card
     app.cardFormElement.addEventListener('submit', app.handleAddCardForm);
   },
 
-  handleAddListForm: function(event) {
+  handleAddListForm: async function(event) {
     // j'empeche le comportement par défaut de l'événeement
     event.preventDefault(); 
     // récupérer la valeur du champ
     // grace au constructeur FormData je peux passer à la moulinette un form et ses champs, pour voir ensuite lire facilement les valeurs des champs
     const data = new FormData(app.listFormElement);
-    // l'objet de data construit par FormData possède une méthode get permettant de récupérer la valeur d'un champ en fonction de son nom (son attribut name)
-    const inputValue = data.get('listName');
-    // créer une liste dans le DOM avec la valeur du champ
-    app.makeListInDOM(inputValue);
-    // je vide le champ pour les prochaines fois
-    app.listModalElement.querySelector('input').value = '';
-    // je ferme la modale
-    app.hideModals();
+    // il faut informer notre API qu'on veut mémoriser une nouvelle liste pour qu'elle la fasse persister en BDD
+    try  {
+      // code RED avec s
+      // const response = await fetch(`${app.base_url}/lists`, {
+      //   method: 'POST',
+      //   body: data,
+      // });
+      // code Blue sans s
+      // coté blue la position est obligatoire
+      // via la méthode append on peut ajouter une paire clé valeur à nos formData
+      data.append('position', 1);
+      const response = await fetch(`${app.base_url}/list`, {
+        method: 'POST',
+        body: data,
+      });
+      const body = await response.json();
+      if (response.status === 200) {
+        // créer une liste dans le DOM avec la valeur du champ
+        // RED
+        // app.makeListInDOM(body.name, body.id);
+        // Blue
+        app.makeListInDOM(body.list.name, body.list.id);
+        // je vide le champ pour les prochaines fois
+        app.listModalElement.querySelector('input').value = '';
+        // je ferme la modale
+        app.hideModals();
+      }
+      else {
+        throw new Error(body);
+      }
+    } catch(error) {
+      alert('Problème lors de la sauvegarde la liste');
+      console.error(error);
+    }
   },
 
   handleAddCardForm: function(event) {
@@ -81,17 +135,23 @@ const app = {
     app.hideModals();
   },
 
-  makeListInDOM: function(listName) {
+  makeListInDOM: function(listName, listId) {
     // je cible mon template
     const template = document.querySelector('#listTemplate');
     // je clone son contenu
     // const clone = document.importNode(template.content, true);
     const clone = template.content.cloneNode(true);
     // je configure le clone
-    const title = clone.querySelector('h2');
+    const title = clone.querySelector('.list-title');
     title.textContent = listName;
+    title.addEventListener('dblclick', app.showEditListForm);
+    const form = clone.querySelector('form');
+    form.addEventListener('submit', app.handleEditListForm);
     const panel = clone.querySelector('.panel');
-    panel.setAttribute('data-list-id', 'X');
+    panel.setAttribute('data-list-id', listId);
+    // on cible le champ caché via un selecteur d'attribut
+    const input = form.querySelector('input[name="list-id"]');
+    input.setAttribute('value', listId);
     // /!\ on écoute le click sur le + de la nouvelle liste aussi !
     clone.querySelector('.panel-heading a').addEventListener('click', app.showAddCardModal);
     // trouver le parent column du bouton
@@ -141,21 +201,63 @@ const app = {
     app.cardModalElement.querySelector('input[name="listId"]').value = id;
   },
 
-  // Recuperer les listes via API 
-  getListsFromAPI: async () => {
-    const reponse = await fetch('http://localhost:3000/lists', {
-      method: 'GET',
-      
-    });
-    const data = await reponse.json();
-    app.makeListInDOM(data[0].name);
-    
-    
+  showEditListForm: function(event) {
+    const titleElement = event.target;
+    // la propriété nextElementSibling permet de cibler le voisin suivant direct d'un element (frère/soeur)
+    // de la meme manière il existe previousElementSibling pour récupérer le voisin précédent
+    const formElement = titleElement.nextElementSibling;
+    titleElement.classList.add('is-hidden');
+    formElement.classList.remove('is-hidden');
   },
 
-};
+  handleEditListForm: async function(event) {
+    // on empeche la soumission par défaut
+    event.preventDefault();
 
-const bas_url = {
+    // on cible le formulaire et le titre à manipuler
+    const formElement = event.target;
+    const titleElement = formElement.previousElementSibling;
+
+    // on génère les paires clés/valeurs pour tout ce qu'il y a dans le formulaire
+    const data = new FormData(formElement);
+
+    // on récupère l'id de la liste à modifier
+    const listId = data.get('list-id');
+
+    try  { 
+      // on appelle l'api sur le bon endpoint pour faire persister le changements de la liste souhaitée
+      // RED
+      // const response = await fetch(`${app.base_url}/lists/${listId}`, {
+      //   method: 'PATCH',
+      //   body: data,
+      // });
+      // Blue
+      const response = await fetch(`${app.base_url}/list/${listId}`, {
+        method: 'PATCH',
+        body: data,
+      });
+      const body = await response.json();
+      // en fonction de la réponse si tout va bien  
+      if (response.status === 200) {
+        // on met à jour le titre dans le DOM
+        // Red
+        // titleElement.textContent = body.name;
+        // Blue
+        titleElement.textContent = body.list.name;
+      }
+      else {
+        // si tout va mal on affiche une erreur
+        throw new Error(body);
+      }
+
+    } catch(error) {
+      alert('Problème lors de la mise à jour la liste');
+      console.error(error);
+    }
+    // on réaffiche le titre
+    titleElement.classList.remove('is-hidden');
+    formElement.classList.add('is-hidden');
+  },
 
 };
 
