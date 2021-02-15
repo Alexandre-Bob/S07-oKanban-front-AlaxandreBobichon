@@ -47,7 +47,14 @@ const app = {
         // for (list of body) {
         // code BLUE : on récupère un objet contenant un tableau
         for (list of body.lists) {
+          //console.log(body.lists[3].cards);
           app.makeListInDOM(list.name, list.id);
+          //j'envoie le nom et l'id des card dans la methodes qui la gére
+          for (const card of list.cards) {
+            console.log(card);
+            app.makeCardInDOM(card.title, list.id)
+            
+          }
         }
       }
       // si l'api nous répond mais que la réponse est une erreur (par exemple si on obtient code 40X)
